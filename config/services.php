@@ -27,6 +27,7 @@ return [
         'FOREX_FACTORY_URL',
         'https://www.forexfactory.com/news'
         ),
+        'api_key' => env('FOREXFACTORY_API'),
     ],
 
     'telegram' => [

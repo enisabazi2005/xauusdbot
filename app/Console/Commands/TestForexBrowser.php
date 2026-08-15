@@ -3,97 +3,75 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Symfony\Component\Process\Process;
+use Illuminate\Support\Facades\Http;
 
 class TestForexBrowser extends Command
 {
     protected $signature = 'forexfactory:test-browser';
 
-    protected $description = 'Test Forex Factory using Puppeteer';
+    protected $description = 'Test ForexFactory API';
 
     public function handle(): int
     {
-        $url = 'https://www.forexfactory.com/news';
+        $this->info('Testing ForexFactory API...');
 
-        $this->info("Opening: {$url}");
+        $apiKey = config('services.forexfactory.api_key');
 
-        $node = 'C:\\Program Files\\nodejs\\node.exe';
-
-        $script = <<<'JS'
-const puppeteer = require('puppeteer');
-
-(async () => {
-    const browser = await puppeteer.launch({
-        headless: false,
-
-        executablePath:
-            'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-
-        userDataDir:
-            'C:\\temp\\chrome-test',
-
-        dumpio: true,
-
-        args: [
-            '--no-first-run',
-            '--no-default-browser-check'
-        ]
-    });
-
-    console.log('PUPPETEER LAUNCHED');
-
-    const page = await browser.newPage();
-
-    await page.goto(
-        'https://www.forexfactory.com/news',
-        {
-            waitUntil: 'domcontentloaded',
-            timeout: 120000
-        }
-    );
-
-    console.log('TITLE:', await page.title());
-    console.log('URL:', page.url());
-
-    const html = await page.content();
-
-    console.log('HTML_LENGTH:', html.length);
-
-    console.log('HTML_START:');
-    console.log(html.substring(0, 1000));
-
-    await new Promise(resolve => setTimeout(resolve, 10000));
-
-    await browser.close();
-})();
-JS;
-
-        $process = new Process([
-            $node,
-            '-e',
-            $script,
-        ]);
-
-        $process->setWorkingDirectory(base_path());
-
-        $process->setTimeout(180);
-
-        $process->run(function ($type, $buffer) {
-            $this->output->write($buffer);
-        });
-
-        if (!$process->isSuccessful()) {
-            $this->error('Puppeteer process failed.');
-
-            $this->error(
-                $process->getErrorOutput()
-            );
+        if (!$apiKey) {
+            $this->error('FOREXFACTORY_API is missing from .env');
 
             return self::FAILURE;
         }
 
-        $this->info('Puppeteer finished successfully.');
+        $endpoint =
+            'https://api.parse.bot/scraper/0d3aa2e2-80b6-42dc-986a-d7f0845f4deb/get_news_latest';
 
-        return self::SUCCESS;
+        $this->info("Endpoint: {$endpoint}");
+
+        try {
+            $response = Http::timeout(30)
+                ->acceptJson()
+                ->withHeaders([
+                    'X-API-Key' => $apiKey,
+                ])
+                ->get($endpoint);
+
+            $this->info(
+                'HTTP Status: ' . $response->status()
+            );
+
+            if (!$response->successful()) {
+                $this->error('API request failed.');
+
+                $this->line(
+                    $response->body()
+                );
+
+                return self::FAILURE;
+            }
+
+            $json = $response->json();
+
+            $this->info('API request successful!');
+
+            $this->newLine();
+
+            $this->line(
+                json_encode(
+                    $json,
+                    JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+                )
+            );
+
+            return self::SUCCESS;
+
+        } catch (\Throwable $e) {
+
+            $this->error(
+                'API error: ' . $e->getMessage()
+            );
+
+            return self::FAILURE;
+        }
     }
 }
