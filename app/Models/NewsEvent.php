@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class NewsEvent extends Model
 {
+    protected $table = 'news_event';
+
     protected $fillable = [
         'external_id',
         'url',
@@ -26,18 +28,15 @@ class NewsEvent extends Model
         'telegram_message_id',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'published_at' => 'datetime',
-            'fetched_at' => 'datetime',
-            'telegram_sent_at' => 'datetime',
+    protected $casts = [
+        'published_at' => 'datetime',
+        'fetched_at' => 'datetime',
+        'telegram_sent_at' => 'datetime',
 
-            'is_relevant' => 'boolean',
+        'is_relevant' => 'boolean',
 
-            'gold_score' => 'decimal:2',
-            'usd_sentiment' => 'decimal:2',
-            'confidence' => 'decimal:2',
-        ];
-    }
+        'gold_score' => 'decimal:2',
+        'usd_sentiment' => 'decimal:2',
+        'confidence' => 'decimal:2',
+    ];
 }

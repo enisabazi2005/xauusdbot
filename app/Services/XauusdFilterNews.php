@@ -255,20 +255,46 @@ class XauusdFilterNews
          * Major geopolitical events can affect Gold.
          * We particularly care about US / Middle East / Russia.
          */
+        // $contextKeywords = [
+        //     'us',
+        //     'u.s.',
+        //     'united states',
+        //     'america',
+        //     'american',
+        //     'iran',
+        //     'israel',
+        //     'russia',
+        //     'ukraine',
+        //     'middle east',
+        //     'trump',
+        //     'pentagon',
+        //     'white house',
+        //     'military',
+        //     'hormuz',
+        //     'red sea',
+        //     'nato',
+        // ];
+
         $contextKeywords = [
-            'us',
-            'u.s.',
-            'united states',
-            'america',
-            'american',
+            'u.s. government',
+            'u.s. military',
+            'u.s. forces',
+            'united states military',
+            'united states government',
+            'american military',
+            'american forces',
+        
             'iran',
             'israel',
             'russia',
             'ukraine',
+        
             'middle east',
+        
             'trump',
             'pentagon',
             'white house',
+        
             'military',
             'hormuz',
             'red sea',

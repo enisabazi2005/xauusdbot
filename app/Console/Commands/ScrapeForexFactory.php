@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\NewsEvent;
 use App\Services\TelegramService;
 use App\Services\XauusdFilterNews;
 use Illuminate\Console\Command;
@@ -11,7 +12,8 @@ class ScrapeForexFactory extends Command
 {
     protected $signature = 'forexfactory:scrape';
 
-    protected $description = 'Fetch Forex Factory news, detect XAUUSD relevant news and send new alerts to Telegram';
+    protected $description =
+        'Fetch Forex Factory news, detect XAUUSD relevant news and send new alerts to Telegram';
 
     public function handle(
         XauusdFilterNews $filter,
@@ -21,7 +23,7 @@ class ScrapeForexFactory extends Command
 
         /*
          * ---------------------------------------------------------
-         * FETCH NEWS FROM FOREXFACTORY API
+         * FETCH NEWS
          * ---------------------------------------------------------
          */
 
@@ -62,7 +64,7 @@ class ScrapeForexFactory extends Command
 
         /*
          * ---------------------------------------------------------
-         * CHECK API RESPONSE
+         * VALIDATE API RESPONSE
          * ---------------------------------------------------------
          */
 
@@ -108,16 +110,25 @@ class ScrapeForexFactory extends Command
             $articles[] = [
                 'title' => $headline,
                 'url' => $url,
-                'impact' => $story['impact'] ?? 'low',
+                'impact' => strtoupper(
+                    $story['impact'] ?? 'low'
+                ),
                 'preview' => $story['preview'] ?? '',
                 'source' => 'Forex Factory',
-                'time' => now()->format('Y-m-d H:i:s'),
+
+                /*
+                 * The API does NOT provide publication time.
+                 *
+                 * Therefore this is the time our bot detected
+                 * the article.
+                 */
+                'published_at' => now(),
             ];
         }
 
         /*
          * ---------------------------------------------------------
-         * REMOVE DUPLICATE STORIES
+         * REMOVE DUPLICATES FROM API RESPONSE
          * ---------------------------------------------------------
          */
 
@@ -131,14 +142,16 @@ class ScrapeForexFactory extends Command
         );
 
         if (empty($articles)) {
-            $this->warn('No valid articles after normalization.');
+            $this->warn(
+                'No valid articles after normalization.'
+            );
 
             return self::SUCCESS;
         }
 
         /*
          * ---------------------------------------------------------
-         * XAUUSD RELEVANCE FILTER
+         * XAUUSD FILTER
          * ---------------------------------------------------------
          */
 
@@ -149,7 +162,9 @@ class ScrapeForexFactory extends Command
 
             $this->line(
                 ($isRelevant ? '✅' : '❌') .
-                ' ' .
+                ' [' .
+                $article['impact'] .
+                '] ' .
                 $article['title']
             );
 
@@ -157,12 +172,6 @@ class ScrapeForexFactory extends Command
                 $relevant[] = $article;
             }
         }
-
-        /*
-         * ---------------------------------------------------------
-         * SUMMARY
-         * ---------------------------------------------------------
-         */
 
         $this->newLine();
 
@@ -180,34 +189,172 @@ class ScrapeForexFactory extends Command
 
         /*
          * ---------------------------------------------------------
-         * SEND RELEVANT NEWS TO TELEGRAM
+         * DATABASE DUPLICATE PROTECTION
          * ---------------------------------------------------------
+         *
+         * URL is the identity of the article.
+         *
+         * If this URL has already been sent,
+         * NEVER send it again.
          */
 
-        $this->newLine();
-        $this->info('Sending relevant news to Telegram...');
+/*
+ * ---------------------------------------------------------
+ * DATABASE DUPLICATE PROTECTION
+ * ---------------------------------------------------------
+ */
 
-        foreach ($relevant as $article) {
-            try {
-                $sent = $telegram->sendNews($article);
+ $newArticles = [];
 
-                if ($sent) {
-                    $this->info(
-                        '📨 Sent: ' . $article['title']
-                    );
-                } else {
-                    $this->error(
-                        '❌ Telegram failed: ' .
-                        $article['title']
-                    );
-                }
-
-            } catch (\Throwable $e) {
-                $this->error(
-                    'Telegram error: ' . $e->getMessage()
-                );
-            }
-        }
+ foreach ($relevant as $article) {
+ 
+     $url = trim($article['url']);
+ 
+     /*
+      * URL itself is unique.
+      *
+      * This is our primary duplicate protection.
+      */
+     $existing = NewsEvent::where('url', $url)->first();
+ 
+     if ($existing) {
+ 
+         $this->line(
+             '⏭️ Already exists: ' .
+             $article['title']
+         );
+ 
+         /*
+          * If it was already sent, definitely don't send it.
+          */
+         if ($existing->telegram_sent_at) {
+             $this->line(
+                 '   ↳ Already sent to Telegram.'
+             );
+         }
+ 
+         continue;
+     }
+ 
+     $newArticles[] = $article;
+ }
+ 
+ $this->newLine();
+ 
+ $this->info(
+     'New XAUUSD news: ' .
+     count($newArticles)
+ );
+ 
+ if (empty($newArticles)) {
+ 
+     $this->info(
+         'Nothing new to send.'
+     );
+ 
+     return self::SUCCESS;
+ }
+ 
+ /*
+  * ---------------------------------------------------------
+  * SAVE + SEND
+  * ---------------------------------------------------------
+  */
+ 
+ foreach ($newArticles as $article) {
+ 
+     $url = trim($article['url']);
+ 
+     /*
+      * Generate a deterministic hash from the URL.
+      *
+      * This satisfies the unique url_hash column.
+      */
+     $urlHash = hash('sha256', $url);
+ 
+     /*
+      * Create database record BEFORE Telegram.
+      */
+     $newsEvent = NewsEvent::create([
+         'external_id' => null,
+ 
+         'url' => $url,
+ 
+         'url_hash' => $urlHash,
+ 
+         'headline' => $article['title'],
+ 
+         'source' => $article['source'] ?? 'Forex Factory',
+ 
+         'impact' => strtolower(
+             $article['impact'] ?? 'unknown'
+         ),
+ 
+         'preview' => $article['preview'] ?? null,
+ 
+         /*
+          * IMPORTANT:
+          *
+          * The current API response does NOT provide
+          * publication time.
+          *
+          * Therefore this represents when XAUWIRE
+          * fetched/detected the article.
+          */
+         'published_at' => $article['published_at'] ?? now(),
+ 
+         'fetched_at' => now(),
+ 
+         'is_relevant' => true,
+ 
+         'telegram_sent_at' => null,
+ 
+         'telegram_message_id' => null,
+     ]);
+ 
+     try {
+ 
+         $sent = $telegram->sendNews([
+             'title' => $newsEvent->headline,
+ 
+             'source' => $newsEvent->source,
+ 
+             'url' => $newsEvent->url,
+ 
+             'impact' => strtoupper(
+                 $newsEvent->impact
+             ),
+ 
+             'published_at' => $newsEvent->published_at,
+         ]);
+ 
+         if ($sent) {
+ 
+             $newsEvent->update([
+                 'telegram_sent_at' => now(),
+             ]);
+ 
+             $this->info(
+                 '📨 Sent: ' .
+                 $newsEvent->headline
+             );
+ 
+         } else {
+ 
+             $this->error(
+                 '❌ Telegram failed: ' .
+                 $newsEvent->headline
+             );
+         }
+ 
+     } catch (\Throwable $e) {
+ 
+         $this->error(
+             'Telegram error: ' .
+             $e->getMessage()
+         );
+     }
+ }
 
         /*
          * ---------------------------------------------------------
@@ -216,7 +363,10 @@ class ScrapeForexFactory extends Command
          */
 
         $this->newLine();
-        $this->info('ForexFactory scrape completed.');
+
+        $this->info(
+            'ForexFactory scrape completed.'
+        );
 
         return self::SUCCESS;
     }

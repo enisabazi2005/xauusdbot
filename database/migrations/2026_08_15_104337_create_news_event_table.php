@@ -14,15 +14,15 @@ return new class extends Migration
         Schema::create('news_event', function (Blueprint $table) {
             $table->id();
             $table->string('external_id')->nullable();
-            $table->text('url');
-            $table->char('url_hash', 64)->unique();
-            $table->text('headline');
+            $table->string('url')->unique();
+            $table->char('url_hash', 64)->default('')->unique();
+            $table->text('headline')->nullable();
             $table->string('source', 100)->default('Forex Factory');
             $table->enum('impact', ['high', 'medium', 'low', 'unknown'])
                 ->default('unknown');
             $table->text('preview')->nullable();
             $table->dateTime('published_at')->nullable();
-            $table->dateTime('fetched_at');
+            $table->dateTime('fetched_at')->nullable();
             $table->boolean('is_relevant')->default(false);
             $table->decimal('gold_score', 5, 2)->nullable();
             $table->decimal('usd_sentiment', 5, 2)->nullable();
