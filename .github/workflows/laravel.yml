@@ -48,7 +48,11 @@ jobs:
       - name: Prepare Laravel
         run: |
           php artisan config:clear
-          php artisan cache:clear
+
+      - name: Run database migrations
+        run: php artisan migrate --force
 
       - name: Run Laravel scheduler
         run: php artisan schedule:run
+
+        
