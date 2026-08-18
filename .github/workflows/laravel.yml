@@ -1,0 +1,54 @@
+name: Laravel ForexFactory Bot
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: '*/5 * * * 1-5'
+
+jobs:
+  scraper:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, bcmath, curl, fileinfo, openssl, pdo, pdo_mysql
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader --no-progress
+
+      - name: Create environment file
+        run: |
+          cat > .env <<'EOF'
+          APP_ENV=production
+          APP_DEBUG=false
+          APP_KEY=${{ secrets.APP_KEY }}
+
+          DB_CONNECTION=${{ secrets.DB_CONNECTION }}
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_PORT=${{ secrets.DB_PORT }}
+          DB_DATABASE=${{ secrets.DB_DATABASE }}
+          DB_USERNAME=${{ secrets.DB_USERNAME }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+
+          FOREXFACTORY_API=${{ secrets.FOREXFACTORY_API }}
+          FOREX_FACTORY_URL=${{ secrets.FOREX_FACTORY_URL }}
+
+          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}
+          EOF
+
+      - name: Prepare Laravel
+        run: |
+          php artisan config:clear
+          php artisan cache:clear
+
+      - name: Run Laravel scheduler
+        run: php artisan schedule:run
