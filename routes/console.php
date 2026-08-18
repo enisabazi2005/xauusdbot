@@ -12,7 +12,7 @@ Schedule::command(
     ->between('09:00', '17:50')
     ->timezone('Europe/Belgrade')
     ->withoutOverlapping()
-    ->runInBackground()
+    // ->runInBackground()
     ->name('xauwire-news');
 
 Schedule::command(
@@ -22,7 +22,7 @@ Schedule::command(
     ->dailyAt('09:00')
     ->timezone('Europe/Belgrade')
     ->withoutOverlapping()
-    ->runInBackground()
+    // ->runInBackground()
     ->name('xauwire-calendar');
 
 Schedule::command(
@@ -32,7 +32,7 @@ Schedule::command(
     ->dailyAt('09:00')
     ->timezone('Europe/Belgrade')
     ->withoutOverlapping()
-    ->runInBackground()
+    // ->runInBackground()
     ->name('xauwire-session-open');
 
 Schedule::command(
@@ -42,7 +42,7 @@ Schedule::command(
     ->dailyAt('14:00')
     ->timezone('Europe/Belgrade')
     ->withoutOverlapping()
-    ->runInBackground()
+    // ->runInBackground()
     ->name('xauwire-new-york');
 
 Schedule::command(
@@ -52,7 +52,7 @@ Schedule::command(
     ->dailyAt('18:00')
     ->timezone('Europe/Belgrade')
     ->withoutOverlapping()
-    ->runInBackground()
+    // ->runInBackground()
     ->name('xauwire-session-close');
 
 Artisan::command('inspire', function () {
