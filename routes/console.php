@@ -9,7 +9,7 @@ Schedule::command(
 )
     ->weekdays()
     ->everyTenMinutes()
-    ->between('09:00', '17:50')
+    ->between('09:00', '18:00')
     ->timezone('Europe/Belgrade')
     ->withoutOverlapping()
     // ->runInBackground()

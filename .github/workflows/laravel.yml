@@ -49,10 +49,5 @@ jobs:
         run: |
           php artisan config:clear
 
-      - name: Run database migrations
-        run: php artisan migrate --force
-
       - name: Run Laravel scheduler
         run: php artisan schedule:run
-
-        
