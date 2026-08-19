@@ -31,6 +31,8 @@ jobs:
           APP_DEBUG=false
           APP_KEY=${{ secrets.APP_KEY }}
 
+          CACHE_STORE=file
+
           DB_CONNECTION=${{ secrets.DB_CONNECTION }}
           DB_HOST=${{ secrets.DB_HOST }}
           DB_PORT=${{ secrets.DB_PORT }}
